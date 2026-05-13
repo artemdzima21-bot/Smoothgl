@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "ru.ruskonnect.smoothgl.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MinecraftClientMixin",
+    "WindowMixin",
+    "WorldRendererMixin",
+    "InGameHudMixin",
+    "EntityRenderDispatcherMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "ParticleMixin",
+    "FeatureLayerCullMixin",
+    "ClientConnectionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

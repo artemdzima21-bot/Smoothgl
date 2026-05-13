@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "smoothgl",
+  "version": "${version}",
+  "name": "SmoothGL",
+  "description": "Honest micro-stutter fixes for the Minecraft OpenGL pipeline: frame profiler with stutter detection, adaptive distance culling for entities/block-entities/particles/armor layers, GPU frame pacer, JIT warmup and direct-buffer pre-touch on startup.",
+  "authors": ["ruskonnect"],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/smoothgl",
+    "sources": "https://github.com/ruskonnect/smoothgl",
+    "issues": "https://github.com/ruskonnect/smoothgl/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/smoothgl/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "ru.ruskonnect.smoothgl.SmoothGLClient"
+    ],
+    "modmenu": [
+      "ru.ruskonnect.smoothgl.gui.SmoothGLModMenu"
+    ]
+  },
+  "mixins": [
+    "smoothgl.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
