@@ -6,7 +6,8 @@
   "client": [
     "VulkanPerformanceMixin",
     "DeviceManagerDiagnosticsMixin",
-    "GL15CompatMixin"
+    "GL15CompatMixin",
+    "GL15CCompatMixin"
   ],
   "injectors": {
     "defaultRequire": 1
