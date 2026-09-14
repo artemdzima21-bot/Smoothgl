@@ -1,5 +1,6 @@
 package dev.smoothgl.pulsevulkan.mixin;
 
+import dev.smoothgl.pulsevulkan.PulseCallScope;
 import dev.smoothgl.pulsevulkan.PulseDiagnostics;
 import dev.smoothgl.pulsevulkan.VulkanGlCompat;
 import org.lwjgl.opengl.GL30;
@@ -16,21 +17,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Mixin(value = GL30.class, priority = 900)
 public abstract class GL30CompatMixin {
-    @Unique
-    private static final AtomicInteger smoothgl$nextVao = new AtomicInteger(300_000);
-    @Unique
-    private static final Set<Integer> smoothgl$vaos = ConcurrentHashMap.newKeySet();
-    @Unique
-    private static volatile int smoothgl$boundVao;
+    @Unique private static final AtomicInteger smoothgl$nextVao = new AtomicInteger(300_000);
+    @Unique private static final Set<Integer> smoothgl$vaos = ConcurrentHashMap.newKeySet();
+    @Unique private static volatile int smoothgl$boundVao;
 
     @Inject(method = "glFramebufferRenderbuffer(IIII)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$framebufferRenderbuffer(int target, int attachment, int renderbufferTarget, int renderbuffer, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         VulkanGlCompat.framebufferRenderbuffer(target, attachment, renderbufferTarget, renderbuffer);
         ci.cancel();
     }
 
     @Inject(method = "glGenVertexArrays()I", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$genVertexArray(CallbackInfoReturnable<Integer> cir) {
+        if (!PulseCallScope.isPulseCall()) return;
         int id = smoothgl$nextVao.getAndIncrement();
         smoothgl$vaos.add(id);
         PulseDiagnostics.fallback("OpenGL VAO emulation enabled");
@@ -39,12 +39,14 @@ public abstract class GL30CompatMixin {
 
     @Inject(method = "glBindVertexArray(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$bindVertexArray(int array, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         if (array == 0 || smoothgl$vaos.contains(array)) smoothgl$boundVao = array;
         ci.cancel();
     }
 
     @Inject(method = "glDeleteVertexArrays(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$deleteVertexArray(int array, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         smoothgl$vaos.remove(array);
         if (smoothgl$boundVao == array) smoothgl$boundVao = 0;
         ci.cancel();
@@ -52,6 +54,7 @@ public abstract class GL30CompatMixin {
 
     @Inject(method = "glGenerateMipmap(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$generateMipmap(int target, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         VulkanGlCompat.generateMipmap(target);
         ci.cancel();
     }
