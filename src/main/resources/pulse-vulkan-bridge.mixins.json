@@ -1,0 +1,17 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dev.smoothgl.pulsevulkan.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "dev.smoothgl.pulsevulkan.mixin.PulseMixinPlugin",
+  "client": [
+    "GL11CompatMixin",
+    "GL13CompatMixin",
+    "GL14CompatMixin",
+    "GL20CompatMixin",
+    "GL30CompatMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
