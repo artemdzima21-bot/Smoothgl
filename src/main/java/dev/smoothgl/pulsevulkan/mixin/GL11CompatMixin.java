@@ -1,5 +1,6 @@
 package dev.smoothgl.pulsevulkan.mixin;
 
+import dev.smoothgl.pulsevulkan.GlIntegerQueryFallback;
 import dev.smoothgl.pulsevulkan.PulseDiagnostics;
 import dev.smoothgl.pulsevulkan.PulseRenderApi;
 import dev.smoothgl.pulsevulkan.ShaderFallback;
@@ -11,6 +12,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.nio.IntBuffer;
+
 @Mixin(value = GL11.class, priority = 900)
 public abstract class GL11CompatMixin {
     private static final int GL_CULL_FACE = 0x0B44;
@@ -19,14 +22,7 @@ public abstract class GL11CompatMixin {
     private static final int GL_VENDOR = 0x1F00;
     private static final int GL_RENDERER = 0x1F01;
     private static final int GL_VERSION = 0x1F02;
-    private static final int GL_MAX_TEXTURE_SIZE = 0x0D33;
-    private static final int GL_ACTIVE_TEXTURE = 0x84E0;
-    private static final int GL_TEXTURE0 = 0x84C0;
-    private static final int GL_MAX_VERTEX_ATTRIBS = 0x8869;
-    private static final int GL_MAX_TEXTURE_IMAGE_UNITS = 0x8872;
-    private static final int GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS = 0x8B4D;
     private static final int GL_SHADING_LANGUAGE_VERSION = 0x8B8C;
-    private static final int GL_CURRENT_PROGRAM = 0x8B8D;
 
     @Inject(method = "glEnable(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$enable(int cap, CallbackInfo ci) {
@@ -34,9 +30,7 @@ public abstract class GL11CompatMixin {
             case GL_BLEND -> PulseRenderApi.enableBlend();
             case GL_DEPTH_TEST -> PulseRenderApi.enableDepth();
             case GL_CULL_FACE -> PulseRenderApi.enableCull();
-            default -> {
-                return;
-            }
+            default -> { return; }
         }
         ci.cancel();
     }
@@ -47,9 +41,7 @@ public abstract class GL11CompatMixin {
             case GL_BLEND -> PulseRenderApi.disableBlend();
             case GL_DEPTH_TEST -> PulseRenderApi.disableDepth();
             case GL_CULL_FACE -> PulseRenderApi.disableCull();
-            default -> {
-                return;
-            }
+            default -> { return; }
         }
         ci.cancel();
     }
@@ -74,16 +66,19 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glGetInteger(I)I", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getInteger(int pname, CallbackInfoReturnable<Integer> cir) {
-        switch (pname) {
-            case GL_MAX_TEXTURE_SIZE -> cir.setReturnValue(16384);
-            case GL_MAX_VERTEX_ATTRIBS, GL_MAX_TEXTURE_IMAGE_UNITS -> cir.setReturnValue(16);
-            case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS -> cir.setReturnValue(32);
-            case GL_ACTIVE_TEXTURE -> cir.setReturnValue(GL_TEXTURE0);
-            case GL_CURRENT_PROGRAM -> cir.setReturnValue(ShaderFallback.currentProgram());
-            default -> {
-                return;
-            }
-        }
+        cir.setReturnValue(GlIntegerQueryFallback.scalar(pname));
+    }
+
+    @Inject(method = "glGetIntegerv(I[I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$getIntegersArray(int pname, int[] params, CallbackInfo ci) {
+        GlIntegerQueryFallback.fill(pname, params);
+        ci.cancel();
+    }
+
+    @Inject(method = "glGetIntegerv(ILjava/nio/IntBuffer;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$getIntegersBuffer(int pname, IntBuffer params, CallbackInfo ci) {
+        GlIntegerQueryFallback.fill(pname, params);
+        ci.cancel();
     }
 
     @Inject(method = "glGetString(I)Ljava/lang/String;", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
@@ -93,9 +88,7 @@ public abstract class GL11CompatMixin {
             case GL_RENDERER -> cir.setReturnValue("Vulkan renderer via VulkanMod");
             case GL_VERSION -> cir.setReturnValue("4.6 SmoothGL compatibility");
             case GL_SHADING_LANGUAGE_VERSION -> cir.setReturnValue("4.60 compatibility fallback");
-            default -> {
-                return;
-            }
+            default -> { return; }
         }
     }
 
