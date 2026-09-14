@@ -10,6 +10,25 @@ The build uses Fabric Loom jar-in-jar packaging. The final SmoothGL JAR physical
 
 Do not install a second external copy of VulkanMod 0.5.4 next to this build; the bundled copy already provides the `vulkanmod` mod id.
 
+## Max-FPS tuning
+
+The bundled runtime raises VulkanMod's frame queue from the stock value of 2 to 4 for higher throughput at very high uncapped FPS. The selected Vulkan GPU is printed to the log as:
+
+`[SmoothGL/Vulkan] Selected GPU: ...`
+
+Override the queue without rebuilding:
+
+`-Dsmoothgl.vulkan.frameQueue=2`
+`-Dsmoothgl.vulkan.frameQueue=3`
+`-Dsmoothgl.vulkan.frameQueue=4`
+`-Dsmoothgl.vulkan.frameQueue=5`
+
+Disable automatic max-FPS tuning entirely with:
+
+`-Dsmoothgl.vulkan.disableMaxFpsTuning=true`
+
+Higher queue values can improve maximum throughput but may increase input latency slightly, so 4 is used as the default performance-oriented compromise.
+
 ## Covered compatibility
 
 - GL11 state: blend, depth test, culling, depth func and color mask.
