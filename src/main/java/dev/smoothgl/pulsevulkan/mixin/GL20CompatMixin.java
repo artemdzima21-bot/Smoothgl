@@ -1,6 +1,7 @@
 package dev.smoothgl.pulsevulkan.mixin;
 
 import dev.smoothgl.pulsevulkan.PulseCallScope;
+import dev.smoothgl.pulsevulkan.PulseVertexState;
 import dev.smoothgl.pulsevulkan.ShaderFallback;
 import org.lwjgl.opengl.GL20;
 import org.spongepowered.asm.mixin.Mixin;
@@ -71,9 +72,9 @@ public abstract class GL20CompatMixin {
     @Inject(method = "glBindAttribLocation(IILjava/lang/CharSequence;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$bindAttribLocation(int program, int index, CharSequence name, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.bindAttribLocation(program, index, name); ci.cancel(); } }
     @Inject(method = "glEnableVertexAttribArray(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$enableVertexAttribArray(int index, CallbackInfo ci) { if (smoothgl$pulse()) ci.cancel(); }
+    private static void smoothgl$enableVertexAttribArray(int index, CallbackInfo ci) { if (smoothgl$pulse()) { PulseVertexState.enable(index); ci.cancel(); } }
     @Inject(method = "glDisableVertexAttribArray(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$disableVertexAttribArray(int index, CallbackInfo ci) { if (smoothgl$pulse()) ci.cancel(); }
+    private static void smoothgl$disableVertexAttribArray(int index, CallbackInfo ci) { if (smoothgl$pulse()) { PulseVertexState.disable(index); ci.cancel(); } }
     @Inject(method = "glVertexAttribPointer(IIIZIJ)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$vertexAttribPointer(int index, int size, int type, boolean normalized, int stride, long pointer, CallbackInfo ci) { if (smoothgl$pulse()) ci.cancel(); }
+    private static void smoothgl$vertexAttribPointer(int index, int size, int type, boolean normalized, int stride, long pointer, CallbackInfo ci) { if (smoothgl$pulse()) { PulseVertexState.pointer(index, size, type, normalized, stride, pointer); ci.cancel(); } }
 }
