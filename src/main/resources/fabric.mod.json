@@ -6,6 +6,7 @@
   "description": "Pulse Visuals compatibility layer with the complete VulkanMod 0.5.4 runtime bundled inside one Minecraft 1.21.4 Fabric JAR.",
   "environment": "client",
   "entrypoints": {
+    "preLaunch": ["dev.smoothgl.pulsevulkan.LwjglStackBootstrap"],
     "client": ["dev.smoothgl.pulsevulkan.PulseVulkanBridge"]
   },
   "mixins": ["pulse-vulkan-bridge.mixins.json"],
