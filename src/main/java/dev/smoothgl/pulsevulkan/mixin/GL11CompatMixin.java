@@ -1,6 +1,7 @@
 package dev.smoothgl.pulsevulkan.mixin;
 
 import dev.smoothgl.pulsevulkan.GlIntegerQueryFallback;
+import dev.smoothgl.pulsevulkan.PulseCallScope;
 import dev.smoothgl.pulsevulkan.PulseDiagnostics;
 import dev.smoothgl.pulsevulkan.PulseRenderApi;
 import dev.smoothgl.pulsevulkan.ShaderFallback;
@@ -94,12 +95,14 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glDrawArrays(III)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$drawArrays(int mode, int first, int count, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         ShaderFallback.unsupportedDraw("glDrawArrays(mode=" + mode + ", count=" + count + ")");
         ci.cancel();
     }
 
     @Inject(method = "glDrawElements(IIIJ)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$drawElements(int mode, int count, int type, long indices, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         ShaderFallback.unsupportedDraw("glDrawElements(mode=" + mode + ", count=" + count + ")");
         ci.cancel();
     }
