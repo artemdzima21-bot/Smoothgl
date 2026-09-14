@@ -3,7 +3,7 @@ package dev.smoothgl.pulsevulkan;
 import net.fabricmc.api.ClientModInitializer;
 
 public final class PulseVulkanBridge implements ClientModInitializer {
-    private static final String BUILD_ID = "0.3.4-gl11c";
+    private static final String BUILD_ID = "0.3.5-gl20c-scope";
 
     @Override
     public void onInitializeClient() {
