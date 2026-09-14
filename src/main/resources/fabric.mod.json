@@ -9,7 +9,10 @@
     "preLaunch": ["dev.smoothgl.pulsevulkan.LwjglStackBootstrap"],
     "client": ["dev.smoothgl.pulsevulkan.PulseVulkanBridge"]
   },
-  "mixins": ["pulse-vulkan-bridge.mixins.json"],
+  "mixins": [
+    "smoothgl-vulkan-performance.mixins.json",
+    "pulse-vulkan-bridge.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.16.10",
     "minecraft": "1.21.4",
