@@ -3,7 +3,7 @@ package dev.smoothgl.pulsevulkan;
 import net.fabricmc.api.ClientModInitializer;
 
 public final class PulseVulkanBridge implements ClientModInitializer {
-    private static final String BUILD_ID = "0.3.6-gl20-array";
+    private static final String BUILD_ID = "0.3.7-native-draw";
 
     @Override
     public void onInitializeClient() {
