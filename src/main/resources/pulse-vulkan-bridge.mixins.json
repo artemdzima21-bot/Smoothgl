@@ -6,6 +6,7 @@
   "plugin": "dev.smoothgl.pulsevulkan.mixin.PulseMixinPlugin",
   "client": [
     "GL11CompatMixin",
+    "GL11CCompatMixin",
     "GL13CompatMixin",
     "GL14CompatMixin",
     "GL20CompatMixin",
