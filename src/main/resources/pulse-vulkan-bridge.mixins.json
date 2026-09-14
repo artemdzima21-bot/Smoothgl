@@ -9,6 +9,7 @@
     "GL13CompatMixin",
     "GL14CompatMixin",
     "GL20CompatMixin",
+    "GL20ExtraCompatMixin",
     "GL30CompatMixin"
   ],
   "injectors": {
