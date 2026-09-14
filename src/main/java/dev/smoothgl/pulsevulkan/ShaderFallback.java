@@ -24,6 +24,7 @@ public final class ShaderFallback {
     private static final Map<Integer, String> SHADER_SOURCES = new ConcurrentHashMap<>();
     private static final Map<Integer, Set<Integer>> PROGRAM_SHADERS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> LOCATIONS = new ConcurrentHashMap<>();
+    private static final Map<Integer, String> ATTRIB_NAMES = new ConcurrentHashMap<>();
     private static volatile int currentProgram;
 
     private ShaderFallback() {}
@@ -53,9 +54,7 @@ public final class ShaderFallback {
         };
     }
 
-    public static String shaderInfoLog(int shader) {
-        return "";
-    }
+    public static String shaderInfoLog(int shader) { return ""; }
 
     public static int createProgram() {
         int id = NEXT_PROGRAM.getAndIncrement();
@@ -72,13 +71,8 @@ public final class ShaderFallback {
         if (shaders != null) shaders.remove(shader);
     }
 
-    public static void linkProgram(int program) {
-        PulseDiagnostics.fallback("glLinkProgram(" + program + ")");
-    }
-
-    public static void validateProgram(int program) {
-        PulseDiagnostics.fallback("glValidateProgram(" + program + ")");
-    }
+    public static void linkProgram(int program) { PulseDiagnostics.fallback("glLinkProgram(" + program + ")"); }
+    public static void validateProgram(int program) { PulseDiagnostics.fallback("glValidateProgram(" + program + ")"); }
 
     public static int getProgramInt(int program, int pname) {
         return switch (pname) {
@@ -91,18 +85,14 @@ public final class ShaderFallback {
         };
     }
 
-    public static String programInfoLog(int program) {
-        return "";
-    }
+    public static String programInfoLog(int program) { return ""; }
 
     public static void useProgram(int program) {
         currentProgram = program;
         if (program != 0) PulseDiagnostics.fallback("glUseProgram: using Vulkan-safe fallback pipeline");
     }
 
-    public static int currentProgram() {
-        return currentProgram;
-    }
+    public static int currentProgram() { return currentProgram; }
 
     public static void deleteShader(int shader) {
         SHADER_TYPES.remove(shader);
@@ -120,11 +110,20 @@ public final class ShaderFallback {
     }
 
     public static int attribLocation(int program, CharSequence name) {
-        return LOCATIONS.computeIfAbsent("a:" + program + ":" + name, ignored -> NEXT_LOCATION.getAndIncrement());
+        String text = String.valueOf(name);
+        int location = LOCATIONS.computeIfAbsent("a:" + program + ":" + text, ignored -> NEXT_LOCATION.getAndIncrement());
+        ATTRIB_NAMES.put(location, text);
+        return location;
     }
 
     public static void bindAttribLocation(int program, int index, CharSequence name) {
-        LOCATIONS.put("a:" + program + ":" + name, index);
+        String text = String.valueOf(name);
+        LOCATIONS.put("a:" + program + ":" + text, index);
+        ATTRIB_NAMES.put(index, text);
+    }
+
+    public static String attribName(int index) {
+        return ATTRIB_NAMES.getOrDefault(index, "?");
     }
 
     public static void uniform(int location, Object value) {
