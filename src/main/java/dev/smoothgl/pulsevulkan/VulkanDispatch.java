@@ -31,8 +31,9 @@ public final class VulkanDispatch {
             bind("shaderColor", "net.vulkanmod.vulkan.VRenderSystem", "setShaderColor", void.class, float.class, float.class, float.class, float.class);
             bind("scissor", "net.vulkanmod.vulkan.Renderer", "setScissor", void.class, int.class, int.class, int.class, int.class);
             bind("viewport", "net.vulkanmod.vulkan.Renderer", "setViewport", void.class, int.class, int.class, int.class, int.class);
-            bind("bindTexture", "net.vulkanmod.gl.VkGlTexture", "bindTexture", void.class, int.class);
+            bindFirst("bindTexture", new String[]{"net.vulkanmod.gl.GlTexture", "net.vulkanmod.gl.VkGlTexture"}, "bindTexture", void.class, int.class);
             ready = true;
+            PulseDiagnostics.infoOnce("bootstrap", "Vulkan dispatch linked successfully");
             return true;
         } catch (Throwable error) {
             HANDLES.clear();
@@ -42,7 +43,9 @@ public final class VulkanDispatch {
         }
     }
 
-    public static boolean isReady() { return ready; }
+    public static boolean isReady() {
+        return ready;
+    }
 
     public static void submit(RenderCommand command) {
         if (!ready) return;
@@ -76,6 +79,19 @@ public final class VulkanDispatch {
     private static void bind(String key, String className, String methodName, Class<?> returnType, Class<?>... args) throws Throwable {
         Class<?> owner = Class.forName(className);
         HANDLES.put(key, LOOKUP.findStatic(owner, methodName, MethodType.methodType(returnType, args)));
+    }
+
+    private static void bindFirst(String key, String[] classNames, String methodName, Class<?> returnType, Class<?>... args) throws Throwable {
+        Throwable last = null;
+        for (String className : classNames) {
+            try {
+                bind(key, className, methodName, returnType, args);
+                return;
+            } catch (Throwable error) {
+                last = error;
+            }
+        }
+        throw new ClassNotFoundException("No compatible VulkanMod class for " + key, last);
     }
 
     private static void invoke(String key, Object... args) throws Throwable {
