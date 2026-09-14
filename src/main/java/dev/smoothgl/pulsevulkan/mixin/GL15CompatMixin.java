@@ -9,6 +9,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
+import java.nio.ShortBuffer;
 
 @Mixin(value = GL15.class, priority = 900)
 public abstract class GL15CompatMixin {
@@ -20,7 +25,42 @@ public abstract class GL15CompatMixin {
     }
 
     @Inject(method = "glBufferData(ILjava/nio/ByteBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$bufferData(int target, ByteBuffer data, int usage, CallbackInfo ci) {
+    private static void smoothgl$bufferDataBytes(int target, ByteBuffer data, int usage, CallbackInfo ci) {
+        if (!PulseBufferFallback.handles(target)) return;
+        PulseBufferFallback.bufferData(target, data, usage);
+        ci.cancel();
+    }
+
+    @Inject(method = "glBufferData(ILjava/nio/ShortBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$bufferDataShorts(int target, ShortBuffer data, int usage, CallbackInfo ci) {
+        if (!PulseBufferFallback.handles(target)) return;
+        PulseBufferFallback.bufferData(target, data, usage);
+        ci.cancel();
+    }
+
+    @Inject(method = "glBufferData(ILjava/nio/IntBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$bufferDataInts(int target, IntBuffer data, int usage, CallbackInfo ci) {
+        if (!PulseBufferFallback.handles(target)) return;
+        PulseBufferFallback.bufferData(target, data, usage);
+        ci.cancel();
+    }
+
+    @Inject(method = "glBufferData(ILjava/nio/LongBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$bufferDataLongs(int target, LongBuffer data, int usage, CallbackInfo ci) {
+        if (!PulseBufferFallback.handles(target)) return;
+        PulseBufferFallback.bufferData(target, data, usage);
+        ci.cancel();
+    }
+
+    @Inject(method = "glBufferData(ILjava/nio/FloatBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$bufferDataFloats(int target, FloatBuffer data, int usage, CallbackInfo ci) {
+        if (!PulseBufferFallback.handles(target)) return;
+        PulseBufferFallback.bufferData(target, data, usage);
+        ci.cancel();
+    }
+
+    @Inject(method = "glBufferData(ILjava/nio/DoubleBuffer;I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void smoothgl$bufferDataDoubles(int target, DoubleBuffer data, int usage, CallbackInfo ci) {
         if (!PulseBufferFallback.handles(target)) return;
         PulseBufferFallback.bufferData(target, data, usage);
         ci.cancel();
