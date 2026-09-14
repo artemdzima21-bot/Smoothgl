@@ -27,6 +27,7 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glEnable(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$enable(int cap, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         switch (cap) {
             case GL_BLEND -> PulseRenderApi.enableBlend();
             case GL_DEPTH_TEST -> PulseRenderApi.enableDepth();
@@ -38,6 +39,7 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glDisable(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$disable(int cap, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         switch (cap) {
             case GL_BLEND -> PulseRenderApi.disableBlend();
             case GL_DEPTH_TEST -> PulseRenderApi.disableDepth();
@@ -49,41 +51,48 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glBlendFunc(II)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$blendFunc(int src, int dst, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         PulseRenderApi.blendFunc(src, dst);
         ci.cancel();
     }
 
     @Inject(method = "glDepthFunc(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$depthFunc(int func, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         VulkanGlCompat.depthFunc(func);
         ci.cancel();
     }
 
     @Inject(method = "glColorMask(ZZZZ)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$colorMask(boolean red, boolean green, boolean blue, boolean alpha, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         VulkanGlCompat.colorMask(red, green, blue, alpha);
         ci.cancel();
     }
 
     @Inject(method = "glGetInteger(I)I", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getInteger(int pname, CallbackInfoReturnable<Integer> cir) {
+        if (!PulseCallScope.isPulseCall()) return;
         cir.setReturnValue(GlIntegerQueryFallback.scalar(pname));
     }
 
     @Inject(method = "glGetIntegerv(I[I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getIntegersArray(int pname, int[] params, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         GlIntegerQueryFallback.fill(pname, params);
         ci.cancel();
     }
 
     @Inject(method = "glGetIntegerv(ILjava/nio/IntBuffer;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getIntegersBuffer(int pname, IntBuffer params, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         GlIntegerQueryFallback.fill(pname, params);
         ci.cancel();
     }
 
     @Inject(method = "glGetString(I)Ljava/lang/String;", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getString(int name, CallbackInfoReturnable<String> cir) {
+        if (!PulseCallScope.isPulseCall()) return;
         switch (name) {
             case GL_VENDOR -> cir.setReturnValue("VulkanMod / SmoothGL");
             case GL_RENDERER -> cir.setReturnValue("Vulkan renderer via VulkanMod");
@@ -109,6 +118,7 @@ public abstract class GL11CompatMixin {
 
     @Inject(method = "glReadBuffer(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$readBuffer(int mode, CallbackInfo ci) {
+        if (!PulseCallScope.isPulseCall()) return;
         PulseDiagnostics.fallback("glReadBuffer handled as Vulkan compatibility no-op");
         ci.cancel();
     }
