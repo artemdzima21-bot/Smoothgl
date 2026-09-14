@@ -1,14 +1,18 @@
 package dev.smoothgl.pulsevulkan;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
+import java.nio.ShortBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Minimal CPU-side emulation for OpenGL vertex/index buffers that VulkanMod
- * 0.5.4 does not support. VulkanMod's own GlBuffer remains responsible for
- * PIXEL_PACK_BUFFER / PIXEL_UNPACK_BUFFER; this class only handles
- * ARRAY_BUFFER / ELEMENT_ARRAY_BUFFER so third-party renderers do not crash.
+ * CPU-side emulation for OpenGL vertex/index buffers that VulkanMod 0.5.4
+ * does not support. PIXEL_PACK/UNPACK remain handled by VulkanMod.
  */
 public final class PulseBufferFallback {
     public static final int GL_ARRAY_BUFFER = 0x8892;
@@ -26,53 +30,70 @@ public final class PulseBufferFallback {
 
     public static void bind(int target, int buffer) {
         if (!handles(target)) return;
-
-        if (target == GL_ARRAY_BUFFER) {
-            boundArrayBuffer = buffer;
-        } else {
-            boundElementArrayBuffer = buffer;
-        }
-
-        if (buffer != 0) {
-            BUFFERS.computeIfAbsent(buffer, BufferState::new).target = target;
-        }
-
-        PulseDiagnostics.infoOnce(
-                "gl15-array-buffer-fallback",
-                "GL15 ARRAY/ELEMENT buffer compatibility enabled"
-        );
+        if (target == GL_ARRAY_BUFFER) boundArrayBuffer = buffer;
+        else boundElementArrayBuffer = buffer;
+        if (buffer != 0) BUFFERS.computeIfAbsent(buffer, BufferState::new).target = target;
+        PulseDiagnostics.infoOnce("gl15-array-buffer-fallback", "GL15 ARRAY/ELEMENT buffer compatibility enabled");
     }
 
     public static void bufferData(int target, ByteBuffer data, int usage) {
-        BufferState state = requireBound(target);
-        state.usage = usage;
-        if (data == null) {
-            state.data = ByteBuffer.allocateDirect(0);
-            return;
-        }
+        store(target, copy(data), usage);
+    }
 
-        ByteBuffer src = data.duplicate();
-        ByteBuffer copy = ByteBuffer.allocateDirect(src.remaining());
-        copy.put(src);
-        copy.flip();
-        state.data = copy;
+    public static void bufferData(int target, ShortBuffer data, int usage) {
+        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
+        ShortBuffer src = data.duplicate();
+        ByteBuffer out = direct(src.remaining() * Short.BYTES);
+        while (src.hasRemaining()) out.putShort(src.get());
+        out.flip();
+        store(target, out, usage);
+    }
+
+    public static void bufferData(int target, IntBuffer data, int usage) {
+        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
+        IntBuffer src = data.duplicate();
+        ByteBuffer out = direct(src.remaining() * Integer.BYTES);
+        while (src.hasRemaining()) out.putInt(src.get());
+        out.flip();
+        store(target, out, usage);
+    }
+
+    public static void bufferData(int target, LongBuffer data, int usage) {
+        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
+        LongBuffer src = data.duplicate();
+        ByteBuffer out = direct(src.remaining() * Long.BYTES);
+        while (src.hasRemaining()) out.putLong(src.get());
+        out.flip();
+        store(target, out, usage);
+    }
+
+    public static void bufferData(int target, FloatBuffer data, int usage) {
+        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
+        FloatBuffer src = data.duplicate();
+        ByteBuffer out = direct(src.remaining() * Float.BYTES);
+        while (src.hasRemaining()) out.putFloat(src.get());
+        out.flip();
+        store(target, out, usage);
+    }
+
+    public static void bufferData(int target, DoubleBuffer data, int usage) {
+        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
+        DoubleBuffer src = data.duplicate();
+        ByteBuffer out = direct(src.remaining() * Double.BYTES);
+        while (src.hasRemaining()) out.putDouble(src.get());
+        out.flip();
+        store(target, out, usage);
     }
 
     public static void bufferData(int target, long size, int usage) {
-        if (size < 0 || size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Unsupported buffer size: " + size);
-        }
-        BufferState state = requireBound(target);
-        state.usage = usage;
-        state.data = ByteBuffer.allocateDirect((int) size);
+        if (size < 0 || size > Integer.MAX_VALUE) throw new IllegalArgumentException("Unsupported buffer size: " + size);
+        store(target, direct((int) size), usage);
     }
 
     public static ByteBuffer mapBuffer(int target) {
         BufferState state = requireBound(target);
-        if (state.data == null) {
-            state.data = ByteBuffer.allocateDirect(0);
-        }
-        ByteBuffer view = state.data.duplicate();
+        if (state.data == null) state.data = direct(0);
+        ByteBuffer view = state.data.duplicate().order(ByteOrder.nativeOrder());
         view.clear();
         return view;
     }
@@ -83,28 +104,37 @@ public final class PulseBufferFallback {
         if (boundElementArrayBuffer == id) boundElementArrayBuffer = 0;
     }
 
-    public static int boundArrayBuffer() {
-        return boundArrayBuffer;
-    }
-
-    public static int boundElementArrayBuffer() {
-        return boundElementArrayBuffer;
-    }
+    public static int boundArrayBuffer() { return boundArrayBuffer; }
+    public static int boundElementArrayBuffer() { return boundElementArrayBuffer; }
 
     public static int sizeOf(int id) {
         BufferState state = BUFFERS.get(id);
         return state == null || state.data == null ? 0 : state.data.capacity();
     }
 
-    private static BufferState requireBound(int target) {
-        if (!handles(target)) {
-            throw new IllegalArgumentException("Target is not handled by Pulse fallback: " + target);
-        }
+    private static ByteBuffer copy(ByteBuffer data) {
+        if (data == null) return direct(0);
+        ByteBuffer src = data.duplicate();
+        ByteBuffer copy = direct(src.remaining());
+        copy.put(src);
+        copy.flip();
+        return copy;
+    }
 
+    private static ByteBuffer direct(int bytes) {
+        return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
+    }
+
+    private static void store(int target, ByteBuffer data, int usage) {
+        BufferState state = requireBound(target);
+        state.usage = usage;
+        state.data = data;
+    }
+
+    private static BufferState requireBound(int target) {
+        if (!handles(target)) throw new IllegalArgumentException("Target is not handled by Pulse fallback: " + target);
         int id = target == GL_ARRAY_BUFFER ? boundArrayBuffer : boundElementArrayBuffer;
-        if (id == 0) {
-            throw new IllegalStateException("No buffer bound for target " + target);
-        }
+        if (id == 0) throw new IllegalStateException("No buffer bound for target " + target);
         return BUFFERS.computeIfAbsent(id, BufferState::new);
     }
 
@@ -113,9 +143,6 @@ public final class PulseBufferFallback {
         volatile int target;
         volatile int usage;
         volatile ByteBuffer data;
-
-        BufferState(int id) {
-            this.id = id;
-        }
+        BufferState(int id) { this.id = id; }
     }
 }
