@@ -10,10 +10,6 @@ import java.nio.ShortBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * CPU-side emulation for OpenGL vertex/index buffers that VulkanMod 0.5.4
- * does not support. PIXEL_PACK/UNPACK remain handled by VulkanMod.
- */
 public final class PulseBufferFallback {
     public static final int GL_ARRAY_BUFFER = 0x8892;
     public static final int GL_ELEMENT_ARRAY_BUFFER = 0x8893;
@@ -36,53 +32,41 @@ public final class PulseBufferFallback {
         PulseDiagnostics.infoOnce("gl15-array-buffer-fallback", "GL15 ARRAY/ELEMENT buffer compatibility enabled");
     }
 
-    public static void bufferData(int target, ByteBuffer data, int usage) {
-        store(target, copy(data), usage);
+    public static void bufferData(int target, ByteBuffer data, int usage) { store(target, copy(data), usage); }
+    public static void bufferData(int target, ShortBuffer data, int usage) { store(target, from(data), usage); }
+    public static void bufferData(int target, IntBuffer data, int usage) { store(target, from(data), usage); }
+    public static void bufferData(int target, LongBuffer data, int usage) { store(target, from(data), usage); }
+    public static void bufferData(int target, FloatBuffer data, int usage) { store(target, from(data), usage); }
+    public static void bufferData(int target, DoubleBuffer data, int usage) { store(target, from(data), usage); }
+
+    public static void bufferData(int target, short[] data, int usage) {
+        ByteBuffer out = direct(data == null ? 0 : data.length * Short.BYTES);
+        if (data != null) for (short v : data) out.putShort(v);
+        out.flip(); store(target, out, usage);
     }
 
-    public static void bufferData(int target, ShortBuffer data, int usage) {
-        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
-        ShortBuffer src = data.duplicate();
-        ByteBuffer out = direct(src.remaining() * Short.BYTES);
-        while (src.hasRemaining()) out.putShort(src.get());
-        out.flip();
-        store(target, out, usage);
+    public static void bufferData(int target, int[] data, int usage) {
+        ByteBuffer out = direct(data == null ? 0 : data.length * Integer.BYTES);
+        if (data != null) for (int v : data) out.putInt(v);
+        out.flip(); store(target, out, usage);
     }
 
-    public static void bufferData(int target, IntBuffer data, int usage) {
-        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
-        IntBuffer src = data.duplicate();
-        ByteBuffer out = direct(src.remaining() * Integer.BYTES);
-        while (src.hasRemaining()) out.putInt(src.get());
-        out.flip();
-        store(target, out, usage);
+    public static void bufferData(int target, long[] data, int usage) {
+        ByteBuffer out = direct(data == null ? 0 : data.length * Long.BYTES);
+        if (data != null) for (long v : data) out.putLong(v);
+        out.flip(); store(target, out, usage);
     }
 
-    public static void bufferData(int target, LongBuffer data, int usage) {
-        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
-        LongBuffer src = data.duplicate();
-        ByteBuffer out = direct(src.remaining() * Long.BYTES);
-        while (src.hasRemaining()) out.putLong(src.get());
-        out.flip();
-        store(target, out, usage);
+    public static void bufferData(int target, float[] data, int usage) {
+        ByteBuffer out = direct(data == null ? 0 : data.length * Float.BYTES);
+        if (data != null) for (float v : data) out.putFloat(v);
+        out.flip(); store(target, out, usage);
     }
 
-    public static void bufferData(int target, FloatBuffer data, int usage) {
-        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
-        FloatBuffer src = data.duplicate();
-        ByteBuffer out = direct(src.remaining() * Float.BYTES);
-        while (src.hasRemaining()) out.putFloat(src.get());
-        out.flip();
-        store(target, out, usage);
-    }
-
-    public static void bufferData(int target, DoubleBuffer data, int usage) {
-        if (data == null) { store(target, ByteBuffer.allocateDirect(0), usage); return; }
-        DoubleBuffer src = data.duplicate();
-        ByteBuffer out = direct(src.remaining() * Double.BYTES);
-        while (src.hasRemaining()) out.putDouble(src.get());
-        out.flip();
-        store(target, out, usage);
+    public static void bufferData(int target, double[] data, int usage) {
+        ByteBuffer out = direct(data == null ? 0 : data.length * Double.BYTES);
+        if (data != null) for (double v : data) out.putDouble(v);
+        out.flip(); store(target, out, usage);
     }
 
     public static void bufferData(int target, long size, int usage) {
@@ -106,7 +90,6 @@ public final class PulseBufferFallback {
 
     public static int boundArrayBuffer() { return boundArrayBuffer; }
     public static int boundElementArrayBuffer() { return boundElementArrayBuffer; }
-
     public static int sizeOf(int id) {
         BufferState state = BUFFERS.get(id);
         return state == null || state.data == null ? 0 : state.data.capacity();
@@ -115,22 +98,19 @@ public final class PulseBufferFallback {
     private static ByteBuffer copy(ByteBuffer data) {
         if (data == null) return direct(0);
         ByteBuffer src = data.duplicate();
-        ByteBuffer copy = direct(src.remaining());
-        copy.put(src);
-        copy.flip();
-        return copy;
+        ByteBuffer out = direct(src.remaining());
+        out.put(src).flip();
+        return out;
     }
 
-    private static ByteBuffer direct(int bytes) {
-        return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
-    }
+    private static ByteBuffer from(ShortBuffer data) { if (data == null) return direct(0); ShortBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Short.BYTES); while(src.hasRemaining()) out.putShort(src.get()); out.flip(); return out; }
+    private static ByteBuffer from(IntBuffer data) { if (data == null) return direct(0); IntBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Integer.BYTES); while(src.hasRemaining()) out.putInt(src.get()); out.flip(); return out; }
+    private static ByteBuffer from(LongBuffer data) { if (data == null) return direct(0); LongBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Long.BYTES); while(src.hasRemaining()) out.putLong(src.get()); out.flip(); return out; }
+    private static ByteBuffer from(FloatBuffer data) { if (data == null) return direct(0); FloatBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Float.BYTES); while(src.hasRemaining()) out.putFloat(src.get()); out.flip(); return out; }
+    private static ByteBuffer from(DoubleBuffer data) { if (data == null) return direct(0); DoubleBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Double.BYTES); while(src.hasRemaining()) out.putDouble(src.get()); out.flip(); return out; }
 
-    private static void store(int target, ByteBuffer data, int usage) {
-        BufferState state = requireBound(target);
-        state.usage = usage;
-        state.data = data;
-    }
-
+    private static ByteBuffer direct(int bytes) { return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder()); }
+    private static void store(int target, ByteBuffer data, int usage) { BufferState state = requireBound(target); state.usage = usage; state.data = data; }
     private static BufferState requireBound(int target) {
         if (!handles(target)) throw new IllegalArgumentException("Target is not handled by Pulse fallback: " + target);
         int id = target == GL_ARRAY_BUFFER ? boundArrayBuffer : boundElementArrayBuffer;
