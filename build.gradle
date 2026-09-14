@@ -32,8 +32,12 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Exact official VulkanMod build for Minecraft 1.21.4 / Fabric.
-    modImplementation "maven.modrinth:JYQhtZtO:${project.vulkanmod_version_id}"
+    // Exact official VulkanMod 0.5.4 build for Minecraft 1.21.4 / Fabric.
+    // It is both a compile/runtime dependency and a Fabric Loom jar-in-jar dependency,
+    // so the final installable JAR physically contains the complete VulkanMod runtime.
+    def vulkanMod = "maven.modrinth:JYQhtZtO:${project.vulkanmod_version_id}"
+    modImplementation vulkanMod
+    include vulkanMod
 }
 
 processResources {
