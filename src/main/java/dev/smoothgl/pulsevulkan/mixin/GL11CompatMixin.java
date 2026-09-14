@@ -3,6 +3,7 @@ package dev.smoothgl.pulsevulkan.mixin;
 import dev.smoothgl.pulsevulkan.GlIntegerQueryFallback;
 import dev.smoothgl.pulsevulkan.PulseCallScope;
 import dev.smoothgl.pulsevulkan.PulseDiagnostics;
+import dev.smoothgl.pulsevulkan.PulseNativeDraw;
 import dev.smoothgl.pulsevulkan.PulseRenderApi;
 import dev.smoothgl.pulsevulkan.ShaderFallback;
 import dev.smoothgl.pulsevulkan.VulkanGlCompat;
@@ -50,45 +51,18 @@ public abstract class GL11CompatMixin {
     }
 
     @Inject(method = "glBlendFunc(II)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$blendFunc(int src, int dst, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        PulseRenderApi.blendFunc(src, dst);
-        ci.cancel();
-    }
-
+    private static void smoothgl$blendFunc(int src, int dst, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { PulseRenderApi.blendFunc(src, dst); ci.cancel(); } }
     @Inject(method = "glDepthFunc(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$depthFunc(int func, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        VulkanGlCompat.depthFunc(func);
-        ci.cancel();
-    }
-
+    private static void smoothgl$depthFunc(int func, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { VulkanGlCompat.depthFunc(func); ci.cancel(); } }
     @Inject(method = "glColorMask(ZZZZ)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$colorMask(boolean red, boolean green, boolean blue, boolean alpha, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        VulkanGlCompat.colorMask(red, green, blue, alpha);
-        ci.cancel();
-    }
+    private static void smoothgl$colorMask(boolean red, boolean green, boolean blue, boolean alpha, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { VulkanGlCompat.colorMask(red, green, blue, alpha); ci.cancel(); } }
 
     @Inject(method = "glGetInteger(I)I", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$getInteger(int pname, CallbackInfoReturnable<Integer> cir) {
-        if (!PulseCallScope.isPulseCall()) return;
-        cir.setReturnValue(GlIntegerQueryFallback.scalar(pname));
-    }
-
+    private static void smoothgl$getInteger(int pname, CallbackInfoReturnable<Integer> cir) { if (PulseCallScope.isPulseCall()) cir.setReturnValue(GlIntegerQueryFallback.scalar(pname)); }
     @Inject(method = "glGetIntegerv(I[I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$getIntegersArray(int pname, int[] params, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        GlIntegerQueryFallback.fill(pname, params);
-        ci.cancel();
-    }
-
+    private static void smoothgl$getIntegersArray(int pname, int[] params, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { GlIntegerQueryFallback.fill(pname, params); ci.cancel(); } }
     @Inject(method = "glGetIntegerv(ILjava/nio/IntBuffer;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$getIntegersBuffer(int pname, IntBuffer params, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        GlIntegerQueryFallback.fill(pname, params);
-        ci.cancel();
-    }
+    private static void smoothgl$getIntegersBuffer(int pname, IntBuffer params, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { GlIntegerQueryFallback.fill(pname, params); ci.cancel(); } }
 
     @Inject(method = "glGetString(I)Ljava/lang/String;", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getString(int name, CallbackInfoReturnable<String> cir) {
@@ -105,7 +79,9 @@ public abstract class GL11CompatMixin {
     @Inject(method = "glDrawArrays(III)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$drawArrays(int mode, int first, int count, CallbackInfo ci) {
         if (!PulseCallScope.isPulseCall()) return;
-        ShaderFallback.unsupportedDraw("glDrawArrays(mode=" + mode + ", count=" + count + ")");
+        if (!PulseNativeDraw.tryDrawArrays(mode, first, count)) {
+            ShaderFallback.unsupportedDraw("glDrawArrays(mode=" + mode + ", count=" + count + ")");
+        }
         ci.cancel();
     }
 
@@ -117,9 +93,5 @@ public abstract class GL11CompatMixin {
     }
 
     @Inject(method = "glReadBuffer(I)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$readBuffer(int mode, CallbackInfo ci) {
-        if (!PulseCallScope.isPulseCall()) return;
-        PulseDiagnostics.fallback("glReadBuffer handled as Vulkan compatibility no-op");
-        ci.cancel();
-    }
+    private static void smoothgl$readBuffer(int mode, CallbackInfo ci) { if (PulseCallScope.isPulseCall()) { PulseDiagnostics.fallback("glReadBuffer handled as Vulkan compatibility no-op"); ci.cancel(); } }
 }
