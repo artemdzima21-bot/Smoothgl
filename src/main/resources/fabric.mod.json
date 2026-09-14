@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
   "id": "smoothgl_pulse_vulkan_bridge",
-  "version": "0.1.0",
+  "version": "${version}",
   "name": "SmoothGL Pulse Vulkan Bridge",
-  "description": "Compatibility bridge for Pulse Visuals and VulkanMod.",
+  "description": "Compatibility bridge for Pulse Visuals and VulkanMod on Minecraft 1.21.4 Fabric.",
   "environment": "client",
   "entrypoints": {
     "client": ["dev.smoothgl.pulsevulkan.PulseVulkanBridge"]
   },
   "depends": {
     "fabricloader": ">=0.16.10",
-    "minecraft": "1.21.1",
-    "vulkanmod": ">=0.5.4-dev"
+    "minecraft": "1.21.4",
+    "java": ">=21",
+    "vulkanmod": ">=0.5.4"
   }
 }
