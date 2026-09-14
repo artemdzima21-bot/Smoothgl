@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.smoothgl.pulsevulkan.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "VulkanPerformanceMixin",
+    "DeviceManagerDiagnosticsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
