@@ -13,7 +13,11 @@ public final class PulseVulkanBridge implements ClientModInitializer {
             return;
         }
 
+        PulseDiagnostics.init();
+
         if (!VulkanDispatch.bootstrap()) {
+            PulseDiagnostics.unsupported("Vulkan backend bootstrap failed; bridge could not link VulkanMod 0.5.4 backend");
+            PulseDiagnostics.flushReport();
             System.err.println("[PulseVulkanBridge] Vulkan backend could not be linked; bridge is disabled");
             return;
         }
