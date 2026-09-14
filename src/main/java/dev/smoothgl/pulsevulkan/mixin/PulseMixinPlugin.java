@@ -1,5 +1,6 @@
 package dev.smoothgl.pulsevulkan.mixin;
 
+import dev.smoothgl.pulsevulkan.LwjglStackBootstrap;
 import dev.smoothgl.pulsevulkan.PulseDiagnostics;
 import dev.smoothgl.pulsevulkan.PulseVisualsDetector;
 import net.fabricmc.loader.api.FabricLoader;
@@ -11,6 +12,13 @@ import java.util.List;
 import java.util.Set;
 
 public final class PulseMixinPlugin implements IMixinConfigPlugin {
+    static {
+        // Mixin bootstrap happens extremely early. Configure LWJGL here as a
+        // second line of defense before any renderer class can initialize its
+        // default 64 KiB MemoryStack.
+        LwjglStackBootstrap.ensureConfigured();
+    }
+
     private boolean enabled;
 
     @Override
