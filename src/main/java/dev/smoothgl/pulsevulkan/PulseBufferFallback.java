@@ -82,6 +82,15 @@ public final class PulseBufferFallback {
         return view;
     }
 
+    public static ByteBuffer snapshot(int id) {
+        BufferState state = BUFFERS.get(id);
+        if (state == null || state.data == null) return null;
+        ByteBuffer view = state.data.asReadOnlyBuffer().order(ByteOrder.nativeOrder());
+        view.position(0);
+        view.limit(state.data.limit());
+        return view;
+    }
+
     public static void delete(int id) {
         BUFFERS.remove(id);
         if (boundArrayBuffer == id) boundArrayBuffer = 0;
