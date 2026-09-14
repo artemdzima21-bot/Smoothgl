@@ -1,6 +1,9 @@
 package dev.smoothgl.pulsevulkan;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +28,8 @@ public final class ShaderFallback {
     private static final Map<Integer, Set<Integer>> PROGRAM_SHADERS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> LOCATIONS = new ConcurrentHashMap<>();
     private static final Map<Integer, String> ATTRIB_NAMES = new ConcurrentHashMap<>();
+    private static final Map<Integer, String> UNIFORM_NAMES = new ConcurrentHashMap<>();
+    private static final Map<Integer, Matrix4Value> MATRIX4_VALUES = new ConcurrentHashMap<>();
     private static volatile int currentProgram;
 
     private ShaderFallback() {}
@@ -40,9 +45,7 @@ public final class ShaderFallback {
         SHADER_SOURCES.put(shader, source == null ? "" : source.toString());
     }
 
-    public static void compileShader(int shader) {
-        PulseDiagnostics.fallback("glCompileShader(" + shader + ")");
-    }
+    public static void compileShader(int shader) { PulseDiagnostics.fallback("glCompileShader(" + shader + ")"); }
 
     public static int getShaderInt(int shader, int pname) {
         return switch (pname) {
@@ -106,7 +109,10 @@ public final class ShaderFallback {
     }
 
     public static int uniformLocation(int program, CharSequence name) {
-        return LOCATIONS.computeIfAbsent("u:" + program + ":" + name, ignored -> NEXT_LOCATION.getAndIncrement());
+        String text = String.valueOf(name);
+        int location = LOCATIONS.computeIfAbsent("u:" + program + ":" + text, ignored -> NEXT_LOCATION.getAndIncrement());
+        UNIFORM_NAMES.put(location, text);
+        return location;
     }
 
     public static int attribLocation(int program, CharSequence name) {
@@ -122,9 +128,8 @@ public final class ShaderFallback {
         ATTRIB_NAMES.put(index, text);
     }
 
-    public static String attribName(int index) {
-        return ATTRIB_NAMES.getOrDefault(index, "?");
-    }
+    public static String attribName(int index) { return ATTRIB_NAMES.getOrDefault(index, "?"); }
+    public static String uniformName(int location) { return UNIFORM_NAMES.getOrDefault(location, "?"); }
 
     public static void uniform(int location, Object value) {
         if (location >= 0 && Boolean.getBoolean("smoothgl.pulse.trace")) {
@@ -133,12 +138,52 @@ public final class ShaderFallback {
     }
 
     public static void uniformMatrix4(int location, boolean transpose, FloatBuffer value) {
-        if (location >= 0 && Boolean.getBoolean("smoothgl.pulse.trace")) {
-            PulseDiagnostics.fallback("mat4 uniform @" + location + ", transpose=" + transpose);
+        if (location < 0 || value == null || value.remaining() < 16) return;
+        FloatBuffer copy = value.duplicate();
+        float[] matrix = new float[16];
+        copy.get(matrix);
+        MATRIX4_VALUES.put(location, new Matrix4Value(location, uniformName(location), transpose, matrix));
+        if (Boolean.getBoolean("smoothgl.pulse.trace")) {
+            PulseDiagnostics.fallback("mat4 uniform @" + location + " (" + uniformName(location) + "), transpose=" + transpose);
         }
+    }
+
+    public static void uniformMatrix4(int location, boolean transpose, float[] value) {
+        if (location < 0 || value == null || value.length < 16) return;
+        float[] matrix = new float[16];
+        System.arraycopy(value, 0, matrix, 0, 16);
+        MATRIX4_VALUES.put(location, new Matrix4Value(location, uniformName(location), transpose, matrix));
+    }
+
+    public static List<Matrix4Value> currentMatrices() {
+        List<Matrix4Value> out = new ArrayList<>(MATRIX4_VALUES.values());
+        out.sort((a, b) -> Integer.compare(a.location(), b.location()));
+        return out;
+    }
+
+    public static Matrix4Value bestTransformMatrix() {
+        Matrix4Value best = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (Matrix4Value matrix : MATRIX4_VALUES.values()) {
+            String name = matrix.name().toLowerCase(Locale.ROOT);
+            int score = 0;
+            if (name.contains("mvp")) score += 100;
+            if (name.contains("projection")) score += 70;
+            if (name.contains("proj")) score += 50;
+            if (name.contains("transform")) score += 40;
+            if (name.contains("matrix")) score += 20;
+            if (name.contains("model")) score += 10;
+            if (score > bestScore) {
+                bestScore = score;
+                best = matrix;
+            }
+        }
+        return bestScore > 0 ? best : (MATRIX4_VALUES.size() == 1 ? MATRIX4_VALUES.values().iterator().next() : null);
     }
 
     public static void unsupportedDraw(String operation) {
         PulseDiagnostics.fallback(operation + " skipped because raw OpenGL draw calls cannot be mapped safely to VulkanMod 0.5.4");
     }
+
+    public record Matrix4Value(int location, String name, boolean transpose, float[] values) {}
 }
