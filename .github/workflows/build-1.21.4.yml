@@ -1,4 +1,4 @@
-name: Build 1.21.4 Fabric bridge
+name: Build bundled Pulse Vulkan 1.21.4
 
 on:
   push:
@@ -30,9 +30,22 @@ jobs:
       - name: Build
         run: gradle build --stacktrace
 
-      - name: Upload bridge jar
+      - name: Verify VulkanMod is physically bundled
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_JAR=$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | head -n 1)
+          echo "Install JAR: $MAIN_JAR"
+          ls -lh "$MAIN_JAR"
+          jar tf "$MAIN_JAR" > /tmp/jar-contents.txt
+          echo "Nested jars:"
+          grep '^META-INF/jars/.*\.jar$' /tmp/jar-contents.txt
+          grep -q '^META-INF/jars/.*\.jar$' /tmp/jar-contents.txt
+
+      - name: Upload install jar
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: smoothgl-pulse-vulkan-bridge-1.21.4
-          path: build/libs/*.jar
+          name: smoothgl-pulse-vulkan-full-1.21.4
+          path: |
+            build/libs/*.jar
