@@ -19,22 +19,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Lazily converts the GLSL captured from a linked Pulse program through
- * VulkanMod's own legacy GLSL converter. No Pulse source is written to disk.
- */
+/** Lazily translates GLSL captured from Pulse through VulkanMod's shader path. */
 public final class PulseProgramPipeline {
     private static final Map<Integer, Entry> ENTRIES = new ConcurrentHashMap<>();
     private static final Map<Integer, Integer> FAILED_SOURCE_HASHES = new ConcurrentHashMap<>();
 
     private static final Pattern FRAGMENT_OUT = Pattern.compile(
-            "(?m)^\\s*(?:layout\\s*\\([^)]*\\)\\s*)?out\\s+vec4\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*;");
+            "(?:layout\\s*\\([^)]*\\)\\s*)?out\\s+vec4\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*;");
     private static final Pattern VERTEX_IN = Pattern.compile(
-            "(?m)^\\s*in\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?[A-Za-z_][A-Za-z0-9_]*\\s+[A-Za-z_][A-Za-z0-9_]*\\s*;");
+            "\\bin\\s+[A-Za-z_][A-Za-z0-9_]*\\s+[A-Za-z_][A-Za-z0-9_]*\\s*;");
     private static final Pattern NON_SAMPLER_UNIFORM = Pattern.compile(
-            "(?m)^\\s*uniform\\s+(?!sampler)[A-Za-z_][A-Za-z0-9_]*\\s+[A-Za-z_][A-Za-z0-9_]*\\s*;");
+            "\\buniform\\s+(?!sampler)[A-Za-z_][A-Za-z0-9_]*\\s+[A-Za-z_][A-Za-z0-9_]*\\s*;");
     private static final Pattern UNSUPPORTED_UNIFORM = Pattern.compile(
-            "(?m)^\\s*uniform\\s+(?:bool|ivec[234]|uvec[234]|mat2|mat[234]x[234]|samplerCube|sampler3D|sampler2DArray|image\\w*)\\b");
+            "\\buniform\\s+(?:bool|ivec[234]|uvec[234]|mat2|mat[234]x[234]|samplerCube|sampler3D|sampler2DArray|image\\w*)\\b");
 
     private PulseProgramPipeline() {}
 
@@ -48,7 +45,8 @@ public final class PulseProgramPipeline {
 
         Entry existing = ENTRIES.get(program);
         if (existing != null && existing.sourceHash == sourceHash) {
-            if (existing.samplerSignature() == samplerSignature(program, existing.samplerNames)) {
+            int liveSamplerSignature = samplerSignature(program, existing.samplerNames);
+            if (existing.builtSamplerSignature == liveSamplerSignature) {
                 existing.updateUniforms();
                 return existing.texturesReady() ? new Prepared(existing.pipeline) : null;
             }
@@ -61,13 +59,13 @@ public final class PulseProgramPipeline {
             FAILED_SOURCE_HASHES.remove(program);
             compiled.updateUniforms();
             PulseDiagnostics.infoOnce("pulse-program-native-" + program,
-                    "Pulse program " + program + " compiled through VulkanMod GLSL -> SPIR-V pipeline");
+                    "Pulse program " + program + " compiled through normalized GLSL -> VulkanMod SPIR-V pipeline");
             return compiled.texturesReady() ? new Prepared(compiled.pipeline) : null;
         } catch (Throwable error) {
             FAILED_SOURCE_HASHES.put(program, sourceHash);
             String message = error.getMessage();
             if (message == null || message.isBlank()) message = error.getClass().getSimpleName();
-            if (message.length() > 220) message = message.substring(0, 220);
+            if (message.length() > 260) message = message.substring(0, 260);
             PulseDiagnostics.infoOnce("pulse-program-compile-failed-" + program + "-" + sourceHash,
                     "Pulse program " + program + " Vulkan shader conversion rejected; using conservative fallback: " + message);
             return null;
@@ -86,12 +84,12 @@ public final class PulseProgramPipeline {
     }
 
     private static Entry compile(int program, ShaderFallback.ProgramSources sources, int sourceHash) {
-        String vertex = normalizeVertex(sources.vertexSource());
-        String fragment = normalizeFragment(sources.fragmentSource());
+        String vertex = normalizeVertex(PulseGlslSanitizer.sanitize(sources.vertexSource()));
+        String fragment = normalizeFragment(PulseGlslSanitizer.sanitize(sources.fragmentSource()));
         validateForVulkanModConverter(vertex, fragment);
 
-        // VulkanMod's converter always emits a binding-0 UBO. Make sure it is
-        // non-empty even for a shader that only uses samplers/constants.
+        // VulkanMod's legacy converter always emits binding 0 as a UBO. Keep it
+        // non-empty even for sampler-only/constant programs.
         if (!NON_SAMPLER_UNIFORM.matcher(vertex).find() && !NON_SAMPLER_UNIFORM.matcher(fragment).find()) {
             vertex = "uniform float smoothglDummy;\n" + vertex;
         }
@@ -102,18 +100,24 @@ public final class PulseProgramPipeline {
         UBO ubo = converter.createUBO();
         Map<String, UniformSlot> slots = new HashMap<>();
         for (Uniform uniform : ubo.getUniforms()) {
-            int size = Math.max(4, uniform.getSize() * Float.BYTES);
-            MappedBuffer mapped = new MappedBuffer(size);
-            MemoryUtil.memSet(mapped.ptr, 0, size);
+            int scalarCount = Math.max(1, uniform.getSize());
+            int bytes = scalarCount * Float.BYTES;
+            MappedBuffer mapped = new MappedBuffer(bytes);
+            MemoryUtil.memSet(mapped.ptr, 0, bytes);
             uniform.setSupplier(() -> mapped);
-            slots.put(uniform.getName(), new UniformSlot(uniform.getInfo().type, uniform.getSize(), mapped));
+            slots.put(uniform.getName(),
+                    new UniformSlot(uniform.getInfo().type, scalarCount, mapped));
         }
 
         List<ImageDescriptor> convertedSamplers = converter.getSamplerList();
         List<ImageDescriptor> mappedSamplers = new ArrayList<>(convertedSamplers.size());
         List<String> samplerNames = new ArrayList<>(convertedSamplers.size());
         for (ImageDescriptor descriptor : convertedSamplers) {
-            int unit = ShaderFallback.samplerUnit(program, descriptor.name, descriptor.imageIdx);
+            int fallbackUnit = mappedSamplers.size();
+            int unit = ShaderFallback.samplerUnit(program, descriptor.name, fallbackUnit);
+            if (unit < 0 || unit >= VTextureSelector.SIZE) {
+                throw new IllegalArgumentException("sampler " + descriptor.name + " requests texture unit " + unit);
+            }
             mappedSamplers.add(new ImageDescriptor(
                     descriptor.getBinding(), descriptor.qualifier, descriptor.name, unit));
             samplerNames.add(descriptor.name);
@@ -126,48 +130,53 @@ public final class PulseProgramPipeline {
                 converter.getVshConverted(), converter.getFshConverted());
         GraphicsPipeline pipeline = builder.createGraphicsPipeline();
 
-        int samplerSignature = samplerSignature(program, samplerNames);
-        return new Entry(program, sourceHash, pipeline, slots, samplerNames, samplerSignature);
+        return new Entry(program, sourceHash, pipeline, slots, samplerNames,
+                samplerSignature(program, samplerNames));
     }
 
     private static void validateForVulkanModConverter(String vertex, String fragment) {
-        if (vertex.contains("gl_Frag") || fragment.contains("gl_FragData")) {
-            throw new IllegalArgumentException("legacy fragment output form is not safely convertible");
+        if (fragment.contains("gl_FragData")) {
+            throw new IllegalArgumentException("multiple legacy fragment outputs need a dedicated attachment mapper");
         }
         if (vertex.contains("layout(binding") || fragment.contains("layout(binding")) {
             throw new IllegalArgumentException("explicit descriptor bindings need a dedicated mapper");
         }
         if (vertex.matches("(?s).*uniform\\s+[^;]*\\[[^;]*;.*")
                 || fragment.matches("(?s).*uniform\\s+[^;]*\\[[^;]*;.*")) {
-            throw new IllegalArgumentException("uniform arrays are not supported by VulkanMod 0.5.4 GlslConverter");
+            throw new IllegalArgumentException("uniform arrays are not supported by VulkanMod 0.5.4 converter");
         }
         if (UNSUPPORTED_UNIFORM.matcher(vertex).find() || UNSUPPORTED_UNIFORM.matcher(fragment).find()) {
-            throw new IllegalArgumentException("shader uses a uniform type not supported by VulkanMod 0.5.4 GlslConverter");
-        }
-        if (vertex.matches("(?s).*uniform\\s+[^;=]+=.*") || fragment.matches("(?s).*uniform\\s+[^;=]+=.*")) {
-            throw new IllegalArgumentException("uniform initializers are not supported by VulkanMod 0.5.4 GlslConverter");
+            throw new IllegalArgumentException("shader uses a uniform type not supported by VulkanMod 0.5.4 converter");
         }
 
         int inputs = 0;
         Matcher matcher = VERTEX_IN.matcher(vertex);
         while (matcher.find()) inputs++;
         if (inputs > 2) {
-            throw new IllegalArgumentException("shader needs " + inputs + " vertex inputs; native bridge currently provides POSITION+UV");
+            throw new IllegalArgumentException("shader needs " + inputs
+                    + " vertex inputs; native bridge currently provides POSITION+UV");
+        }
+
+        int outputs = 0;
+        Matcher outputMatcher = FRAGMENT_OUT.matcher(fragment);
+        while (outputMatcher.find()) outputs++;
+        if (outputs > 1) {
+            throw new IllegalArgumentException("shader writes " + outputs
+                    + " fragment outputs; bridge currently supports one color attachment");
         }
     }
 
     private static String normalizeVertex(String source) {
         String out = source.replace("\r", "");
-        out = out.replaceAll("(?m)^\\s*attribute\\s+", "in ");
-        out = out.replaceAll("(?m)^\\s*varying\\s+", "out ");
+        out = out.replaceAll("\\battribute\\s+", "in ");
+        out = out.replaceAll("\\bvarying\\s+", "out ");
         out = stripIoLayoutQualifiers(out);
-        out = out.replace("texture2D(", "texture(");
         return out;
     }
 
     private static String normalizeFragment(String source) {
         String out = source.replace("\r", "");
-        out = out.replaceAll("(?m)^\\s*varying\\s+", "in ");
+        out = out.replaceAll("\\bvarying\\s+", "in ");
 
         Matcher output = FRAGMENT_OUT.matcher(out);
         if (output.find()) {
@@ -179,13 +188,12 @@ public final class PulseProgramPipeline {
 
         out = out.replace("gl_FragColor", "fragColor");
         out = stripIoLayoutQualifiers(out);
-        out = out.replace("texture2D(", "texture(");
         return out;
     }
 
     private static String stripIoLayoutQualifiers(String source) {
         return source.replaceAll(
-                "(?m)^\\s*layout\\s*\\([^)]*\\)\\s*(in|out)\\s+", "$1 ");
+                "layout\\s*\\([^)]*\\)\\s*(in|out)\\s+", "$1 ");
     }
 
     private static int sourceHash(ShaderFallback.ProgramSources sources) {
@@ -224,17 +232,12 @@ public final class PulseProgramPipeline {
             this.builtSamplerSignature = builtSamplerSignature;
         }
 
-        int samplerSignature() {
-            return builtSamplerSignature;
-        }
-
         void updateUniforms() {
             for (Map.Entry<String, UniformSlot> uniformEntry : uniforms.entrySet()) {
                 String name = uniformEntry.getKey();
                 if ("smoothglDummy".equals(name)) continue;
                 ShaderFallback.UniformValue value = ShaderFallback.uniformValue(program, name);
-                if (value == null) continue;
-                uniformEntry.getValue().write(value);
+                if (value != null) uniformEntry.getValue().write(value);
             }
         }
 
@@ -243,7 +246,9 @@ public final class PulseProgramPipeline {
             for (String name : samplerNames) {
                 int unit = ShaderFallback.samplerUnit(program, name, fallback++);
                 try {
-                    if (VTextureSelector.getImage(unit) == null) return false;
+                    if (unit < 0 || unit >= VTextureSelector.SIZE || VTextureSelector.getImage(unit) == null) {
+                        return false;
+                    }
                 } catch (Throwable error) {
                     return false;
                 }
@@ -265,8 +270,7 @@ public final class PulseProgramPipeline {
             int[] ints = value.ints();
             int count = Math.min(size, floats.length > 0 ? floats.length : ints.length);
             for (int i = 0; i < count; i++) {
-                float v = floats.length > 0 ? floats[i] : ints[i];
-                mapped.putFloat(i * Float.BYTES, v);
+                mapped.putFloat(i * Float.BYTES, floats.length > 0 ? floats[i] : ints[i]);
             }
         }
     }
