@@ -77,6 +77,7 @@ public final class PulseBufferFallback {
     public static ByteBuffer mapBuffer(int target) {
         BufferState state = requireBound(target);
         if (state.data == null) state.data = direct(0);
+        state.revision++;
         ByteBuffer view = state.data.duplicate().order(ByteOrder.nativeOrder());
         view.clear();
         return view;
@@ -89,6 +90,11 @@ public final class PulseBufferFallback {
         view.position(0);
         view.limit(state.data.limit());
         return view;
+    }
+
+    public static long revision(int id) {
+        BufferState state = BUFFERS.get(id);
+        return state == null ? -1L : state.revision;
     }
 
     public static void delete(int id) {
@@ -119,7 +125,12 @@ public final class PulseBufferFallback {
     private static ByteBuffer from(DoubleBuffer data) { if (data == null) return direct(0); DoubleBuffer src=data.duplicate(); ByteBuffer out=direct(src.remaining()*Double.BYTES); while(src.hasRemaining()) out.putDouble(src.get()); out.flip(); return out; }
 
     private static ByteBuffer direct(int bytes) { return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder()); }
-    private static void store(int target, ByteBuffer data, int usage) { BufferState state = requireBound(target); state.usage = usage; state.data = data; }
+    private static void store(int target, ByteBuffer data, int usage) {
+        BufferState state = requireBound(target);
+        state.usage = usage;
+        state.data = data;
+        state.revision++;
+    }
     private static BufferState requireBound(int target) {
         if (!handles(target)) throw new IllegalArgumentException("Target is not handled by Pulse fallback: " + target);
         int id = target == GL_ARRAY_BUFFER ? boundArrayBuffer : boundElementArrayBuffer;
@@ -131,6 +142,7 @@ public final class PulseBufferFallback {
         final int id;
         volatile int target;
         volatile int usage;
+        volatile long revision;
         volatile ByteBuffer data;
         BufferState(int id) { this.id = id; }
     }
