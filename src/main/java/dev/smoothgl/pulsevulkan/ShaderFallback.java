@@ -90,9 +90,17 @@ public final class ShaderFallback {
 
     public static String programInfoLog(int program) { return ""; }
 
+    public static boolean isSyntheticProgram(int program) {
+        return program >= 200_000 && PROGRAM_SHADERS.containsKey(program);
+    }
+
     public static void useProgram(int program) {
         currentProgram = program;
-        if (program != 0) PulseDiagnostics.fallback("glUseProgram: using Vulkan-safe fallback pipeline");
+        PulseCallScope.setProgramActive(program != 0 && isSyntheticProgram(program));
+        if (program != 0) {
+            // This is a very hot path. Do not run regex-heavy compatibility diagnostics on every draw.
+            PulseDiagnostics.infoOnce("gl-use-program-fallback", "glUseProgram is routed through the Vulkan-safe Pulse program state");
+        }
     }
 
     public static int currentProgram() { return currentProgram; }
@@ -105,7 +113,10 @@ public final class ShaderFallback {
 
     public static void deleteProgram(int program) {
         PROGRAM_SHADERS.remove(program);
-        if (currentProgram == program) currentProgram = 0;
+        if (currentProgram == program) {
+            currentProgram = 0;
+            PulseCallScope.setProgramActive(false);
+        }
     }
 
     public static int uniformLocation(int program, CharSequence name) {
