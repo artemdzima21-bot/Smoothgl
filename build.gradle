@@ -32,6 +32,11 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
+    // Minecraft/VulkanMod provides the Vulkan LWJGL module at runtime. The Modrinth
+    // dependency does not expose it transitively to our Java compiler, so keep this
+    // compile-only: it must not create a second packaged LWJGL runtime.
+    compileOnly "org.lwjgl:lwjgl-vulkan:3.3.3"
+
     // Exact official VulkanMod 0.5.4 build for Minecraft 1.21.4 / Fabric.
     // It is both a compile/runtime dependency and a Fabric Loom jar-in-jar dependency,
     // so the final installable JAR physically contains the complete VulkanMod runtime.
