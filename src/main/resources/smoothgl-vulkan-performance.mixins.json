@@ -6,6 +6,9 @@
   "client": [
     "VulkanPerformanceMixin",
     "DeviceManagerDiagnosticsMixin",
+    "SynchronizationSemaphoreMixin",
+    "ImageUploadSemaphoreMixin",
+    "RendererSemaphoreSyncMixin",
     "GL15CompatMixin",
     "GL15CCompatMixin"
   ],
