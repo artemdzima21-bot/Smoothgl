@@ -55,15 +55,15 @@ public abstract class GL20CompatMixin {
     @Inject(method = "glGetUniformLocation(ILjava/lang/CharSequence;)I", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$getUniformLocation(int program, CharSequence name, CallbackInfoReturnable<Integer> cir) { if (smoothgl$pulse()) cir.setReturnValue(ShaderFallback.uniformLocation(program, name)); }
     @Inject(method = "glUniform1i(II)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$uniform1i(int location, int value, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniform(location, value); ci.cancel(); } }
+    private static void smoothgl$uniform1i(int location, int value, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformInts(location, value); ci.cancel(); } }
     @Inject(method = "glUniform1f(IF)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$uniform1f(int location, float value, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniform(location, value); ci.cancel(); } }
+    private static void smoothgl$uniform1f(int location, float value, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformFloats(location, value); ci.cancel(); } }
     @Inject(method = "glUniform2f(IFF)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$uniform2f(int location, float x, float y, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniform(location, x + "," + y); ci.cancel(); } }
+    private static void smoothgl$uniform2f(int location, float x, float y, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformFloats(location, x, y); ci.cancel(); } }
     @Inject(method = "glUniform3f(IFFF)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$uniform3f(int location, float x, float y, float z, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniform(location, x + "," + y + "," + z); ci.cancel(); } }
+    private static void smoothgl$uniform3f(int location, float x, float y, float z, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformFloats(location, x, y, z); ci.cancel(); } }
     @Inject(method = "glUniform4f(IFFFF)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void smoothgl$uniform4f(int location, float x, float y, float z, float w, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniform(location, x + "," + y + "," + z + "," + w); ci.cancel(); } }
+    private static void smoothgl$uniform4f(int location, float x, float y, float z, float w, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformFloats(location, x, y, z, w); ci.cancel(); } }
     @Inject(method = "glUniformMatrix4fv(IZLjava/nio/FloatBuffer;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void smoothgl$uniformMatrix4fv(int location, boolean transpose, FloatBuffer matrix, CallbackInfo ci) { if (smoothgl$pulse()) { ShaderFallback.uniformMatrix4(location, transpose, matrix); ci.cancel(); } }
 
