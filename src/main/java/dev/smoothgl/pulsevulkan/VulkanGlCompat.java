@@ -4,6 +4,7 @@ import net.vulkanmod.gl.GlFramebuffer;
 import net.vulkanmod.gl.GlRenderbuffer;
 import net.vulkanmod.gl.GlTexture;
 import net.vulkanmod.vulkan.VRenderSystem;
+import net.vulkanmod.vulkan.shader.PipelineState;
 
 public final class VulkanGlCompat {
     private VulkanGlCompat() {}
@@ -18,6 +19,10 @@ public final class VulkanGlCompat {
 
     public static void colorMask(boolean red, boolean green, boolean blue, boolean alpha) {
         VRenderSystem.colorMask(red, green, blue, alpha);
+    }
+
+    public static void blendEquation(int mode) {
+        PipelineState.blendInfo.setBlendOp(mode);
     }
 
     public static int genFramebuffer() {
