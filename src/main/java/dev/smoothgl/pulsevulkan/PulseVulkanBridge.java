@@ -3,7 +3,7 @@ package dev.smoothgl.pulsevulkan;
 import net.fabricmc.api.ClientModInitializer;
 
 public final class PulseVulkanBridge implements ClientModInitializer {
-    private static final String BUILD_ID = "0.3.8-orientation-cache";
+    private static final String BUILD_ID = "0.3.9-semaphore-sync";
 
     @Override
     public void onInitializeClient() {
