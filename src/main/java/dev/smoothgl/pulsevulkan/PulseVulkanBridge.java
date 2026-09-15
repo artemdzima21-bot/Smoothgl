@@ -3,7 +3,7 @@ package dev.smoothgl.pulsevulkan;
 import net.fabricmc.api.ClientModInitializer;
 
 public final class PulseVulkanBridge implements ClientModInitializer {
-    private static final String BUILD_ID = "0.3.7-native-draw";
+    private static final String BUILD_ID = "0.3.8-orientation-cache";
 
     @Override
     public void onInitializeClient() {
